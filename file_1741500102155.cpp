@@ -14,7 +14,7 @@
 #define readvi(a, n) vector<int> a(n); forn (i, n) cin >> a[i]
 #define printvi(a, n, d) if (!d || DEBUG) { forn (i, n) cout << a[i] << " "; cout << endl; }
 #define printii(a, d) if (!d || DEBUG) { cout << a.first << " " << b.first << endl; }
-#define endl '\n'
+// #define endl '\n'
 #define debug if (DEBUG) cout
 #define print cout
 #define DEBUG 0
@@ -83,7 +83,7 @@ struct bigint {
         remove_tz();
         return *this;
     }
-    bigint operator+(bigint o) {
+    bigint operator+(bigint o) const {
         int carry = 0; vector<int> s;
         int ts = dig.size(), os = o.dig.size();
         forn (i, max(ts, os)) {
@@ -108,7 +108,20 @@ struct bigint {
         }
         return bigint(s);
     }
-    vector<int> convert_base(const vector<int> &a, int old_digits, int new_digits) {
+    bigint operator+(int n) const {
+        bigint res = *this;
+        if (dig.size() == 0) {
+            res.dig.pb(n);
+            return res;
+        }
+        int i; ll carry; for (i = 0, carry = n; i < dig.size(); i++) {
+            carry += dig[i];
+            res.dig[i] = carry % base;
+            carry /= base;
+        }
+        return res;
+    }
+    vector<int> convert_base(const vector<int> &a, int old_digits, int new_digits) const {
 		vector<long long> p(max(old_digits, new_digits) + 1);
 		p[0] = 1;
 		for (int i = 1; i < (int) p.size(); i++)
@@ -130,7 +143,7 @@ struct bigint {
 			res.pop_back();
 		return res;
 	}
-    bigint operator*(bigint o) {
+    bigint operator*(bigint o) const {
 		vector<int> t6 = convert_base(this->dig, digits, 5);
 		vector<int> o6 = convert_base(o.dig, digits, 5);
 		vector<ll> a(t6.begin(), t6.end());
@@ -151,7 +164,7 @@ struct bigint {
 		res.dig = convert_base(res.dig, 5, digits);
 		return res;
     }
-    vector<ll> multiply(vector<ll> &a, vector<ll> &b) {
+    vector<ll> multiply(vector<ll> &a, vector<ll> &b) const {
         int n = a.size();
         vector<ll> res(n + n);
         if (n <= 32) {
@@ -249,7 +262,7 @@ struct bigint {
     bool operator==(const int o) const {
         return comp(o, 4);
     }
-    bigint operator-(bigint o) {
+    bigint operator-(bigint o) const {
         if (*this < o) return bigint(0);
         bigint res(dig);
         dforn (i, o.dig.size()) {
@@ -268,7 +281,7 @@ struct bigint {
         res.remove_tz();
         return res;
     }
-    pair<bigint, bigint> division(bigint o) {
+    pair<bigint, bigint> division(bigint o) const {
         if (o == (bigint)0)
             throw runtime_error("Division by 0");
         if (*this == (bigint)0)
@@ -278,6 +291,7 @@ struct bigint {
         bigint resto = *this;
         int os = o.dig.size();
         
+        // static auto inicio = time(NULL);
         while (o <= resto) {
             int rs = resto.dig.size();
             if (rs > os) {
@@ -305,19 +319,26 @@ struct bigint {
 
         bigint i(div);
         i.remove_tz();
+        
+        /* auto ahora = time(NULL);
+        static int mark = 0;
+        if (ahora - inicio - mark > 1) {
+            mark = ahora - inicio;
+            cout << "tiempo: " << ahora - inicio << endl;
+        } */
         return mp(i, resto);
     }
-    bigint operator/(bigint o) {
+    bigint operator/(bigint o) const {
         return this->division(o).first;
     }
-    bigint operator%(bigint o) {
+    bigint operator%(bigint o) const {
         return this->division(o).second;
     }
     void remove_tz() {
         int i; for (i=dig.size()-1; i>0 && dig[i]==0; i--);
         dig.resize(i + 1);
     }
-    ull to_ull() {
+    ull to_ull() const {
         ull v = 0;
         dforn (i, dig.size()) {
             v += dig[i];
@@ -325,7 +346,7 @@ struct bigint {
         }
         return v;
     }
-    int to_int() {
+    int to_int() const {
         if (dig.size()>0) return dig[0];
         return 0;
     }
@@ -346,23 +367,26 @@ struct bigint {
         v.read(s);
         return stream;
     }
+    bool is_even() const { return dig.size()==0 || dig[0]&1==0; }
+    bool is_odd() const { return dig.size()>0 && dig[0]&1==1; }
+    bool is_zero() const { return dig.size()==0 || (dig.size()==1 && dig[0]==0); }
 };
 
 bigint gcd(bigint a, bigint b) {
-    return a>0?gcd(b%a,a):b;
+    return a.is_zero() ? b : gcd(b%a,a);
 }
 
-bigint pow_mod(bigint base, bigint exp, bigint mod) {
+bigint pow_mod(bigint base, bigint exp, const bigint &mod) {
     bigint p = 1;
-    while (exp > 0) {
-        if (exp % 2 == 1) p = p * base % mod;
+    while (!exp.is_zero()) {
+        if (exp.is_odd()) p = p * base % mod;
         base = base * base % mod;
         exp = exp / 2;
     }
     return p;
 }
 
-bool check_composite(bigint n, bigint base, bigint d, int r) {
+bool check_composite(const bigint &n, const bigint &base, const bigint &d, const int r) {
     bigint x = pow_mod(base, d, n);
     if (x == 1 || x == n-1) return false;
     forr (i, 1, r) {
@@ -373,53 +397,70 @@ bool check_composite(bigint n, bigint base, bigint d, int r) {
     return true;
 }
 
-bool is_prime(bigint n) {
+bool is_prime(const bigint &n) {
     if (n < 2) return false;
     int r = 0; bigint d = n-1;
-    while (d % 2 == 0) r++, d = d / 2;
-    forn (i, 20) {
+    while (d.is_even()) r++, d = d / 2;
+    forn (i, 100) {
         int max = (n < (int)1e9 ? n.to_int() : 1e9);
         bigint a = 2 + rand() % (max-3);
-        if (n == a) return true;
         if (check_composite(n, a, d, r)) return false;
     }
     return true;
 }
 
-bigint f(bigint x, bigint c, bigint mod) {
+bigint f(const bigint &x, const int c, const bigint &mod) {
     return (x * x % mod + c) % mod;
 }
 
-bigint rho(bigint n) {
-    if (n % 2 == 0) return 2;
-    int max = (n < (int)1e8 ? n.to_int() : 1e9);
-    bigint x = rand()%max, y = x, g = 1;
-    bigint c = rand()%max;
+bigint rho(const bigint &n) {
+    if (n.is_even()) return 2;
+    int max = (n < (int)1e8 ? n.to_int() : 1e8);
+    bigint x = rand()%max, y = x, g = 1, d;
+    int    c = rand()%max;
     while (g == 1) {
         x = f(x, c, n);
         y = f(y, c, n);
         y = f(y, c, n);
-        g = gcd(x>y?x-y:y-x, n);
+        d = x>y?x-y:y-x;
+        g = gcd(d, n);
     }
     return g == n ? rho(n) : g;
 }
 
 void factorizar(bigint n, map<bigint, int> &f) {
     if (n < 2) return;
+    for (int p : {2,3,5,7,11,13,17,19,21,23,29,31}) {
+        while ((n % p).is_zero()) {
+            f[p]++;
+            n = n / p;
+        }
+    }
+    auto inicio = std::chrono::high_resolution_clock::now();
     while (n > 1 && !is_prime(n)) {
+        cout << n << " ";
         bigint p = rho(n);
-        if (p == 0) exit(0);
+        cout << p << endl;
+        if (p.is_zero()) exit(0);
         n = n / p;
         factorizar(p, f);
+        auto ahora = std::chrono::high_resolution_clock::now();
+        std::chrono::duration<double, std::milli> duracion = ahora - inicio;
+        cout << "tiempo: " << duracion << endl;
     }
     if (n > 1) f[n]++;
 }
 
 int main() {
     bigint a; map<bigint, int> f;
-    while (cin >> a && !(a == 0)) {
+    auto inicio = std::chrono::high_resolution_clock::now();
+    while (cin >> a && !a.is_zero()) {
         f.clear();
         factorizar(a,f);
+        auto ahora = std::chrono::high_resolution_clock::now();
+        std::chrono::duration<double, std::milli> duracion = ahora - inicio;
+        
+        cout << "tiempo: " << duracion << endl;
         for (auto [p,fr] : f) {
             cout << p << "^" << fr << " ";
         }
