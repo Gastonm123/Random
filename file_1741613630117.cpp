@@ -163,7 +163,7 @@ bool is_prime(u128 n, Montgomery &ms) {
     }
     int r = 0; u128 d = n-1;
     while (!(d&1)) r++, d >>= 1;
-    forn (i, 10) {
+    forn (i, 500) {
         u128 a = 2 + get_rand() % (n-3);
         if (check_composite(n, a, d, r, ms)) {
             return false;
@@ -179,6 +179,7 @@ u128 f(u128 x, u128 c, Montgomery &ms) {
     return v;
 }
 
+/*
 u128 rho(u128 n, Montgomery &ms) {
     if (!(n&1)) return 2;
     u128 x = ms.init(2), y = x, g, d;
@@ -200,37 +201,43 @@ u128 rho(u128 n, Montgomery &ms) {
     } while (g == n);
     return g;
 }
+*/
 
-u128 brent(u128 n, Montgomery &ms) {
-    u128 g;
-    do {
-        u128 x = get_rand() % n;
-        u128 c = get_rand() % n;
-        u128 q = 1;
-        u128 xs, y;
-        g = 1;
+u128 brent(u128 n, ms) {
+    u128 x = get_rand() % n;
+    u128 c = get_rand() % n;
+    u128 g = 1;
+    u128 q = 1;
+    u128 xs, y;
 
-        int m = 128;
-        int l = 1;
-        while (g == 1) {
-            y = x;
-            for (int i = 1; i < l; i++)
+    int m = 128;
+    int l = 1;
+    while (g == 1) {
+        y = x;
+        for (int i = 1; i < l; i++)
+            x = f(x, c, ms);
+        int k = 0;
+        while (k < l && g == 1) {
+            xs = x;
+            for (int i = 0; i < m && i < l - k; i++) {
                 x = f(x, c, ms);
-            int k = 0;
-            while (k < l && g == 1) {
-                xs = x;
-                for (int i = 0; i < m && i < l - k; i++) {
-                    x = f(x, c, ms);
-                    i128 d = (i128)y - (i128)x;
-                    if (d < 0) d += n;
-                    q = ms.mult(q, (u128)d);
-                }
-                g = gcd(ms.reduce({0,q}), n);
-                k += m;
+                i128 d = (i128)y - (i128)x;
+                if (d < 0) d += n;
+                q = ms.mult(q, (u128)d);
             }
-            l *= 2;
+            g = gcd(ms.reduce({0,q}), n);
+            k += m;
         }
-    } while (g == n);
+        l *= 2;
+    }
+    if (g == n) {
+        do {
+            xs = f(xs, c, ms);
+            i128 d = (i128)y - (i128)xs;
+            if (d < 0) d += n;
+            g = gcd(d, n);
+        } while (g == 1);
+    }
     return g;
 }
 
@@ -253,25 +260,30 @@ void factorizar(u128 n, map<u128, int> &f) {
     if (n == 1) return;
     Montgomery ms(n);
     while (!is_prime(n, ms)) {
-        u128 p = brent(n, ms);
+        u128 p = rho(n, ms);
         n /= p;
         ms = Montgomery(n);
         factorizar(p, f);
     }
-    // n is a prime
-    f[n]++;
+    if (n > 1) f[n]++;
 }
 
 int main() {
     init_sv();
     u128 a; map<u128, int> f;
-    while (cin >> a && a > 0) {
+    std::chrono::duration<double, std::milli> best, worse, sum;
+    forn (i, 100) {
+        auto inicio = std::chrono::high_resolution_clock::now();
+        a = get_rand() % (u128)1e30;
         f.clear();
         factorizar(a,f);
-        
-        for (auto [p,fr] : f) {
-            cout << p << "^" << fr << " ";
-        }
-        cout << endl;
+        auto ahora = std::chrono::high_resolution_clock::now();
+        std::chrono::duration<double, std::milli> duracion = ahora - inicio;
+        if (i == 0) best = worse = duracion;
+        else best = min(best, duracion), worse = max(worse, duracion);
+        sum += duracion;
     }
+    cout << "Peor tiempo: " << worse.count() << endl;
+    cout << "Mejor tiempo: " << best.count() << endl;
+    cout << "Suma: " << sum.count() << endl;
 }
