@@ -32,6 +32,7 @@ using u64 = uint64_t;
 using u128 = __uint128_t;
 using i128 = __int128_t;
 
+// PROBLEMA: https://www.spoj.com/problems/FACT2/
 
 ostream& operator<<(ostream &stream, u128 n) {
     ull hi = n / (ull)1e18, lo = n % (ull)1e18;
