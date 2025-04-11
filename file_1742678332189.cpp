@@ -7,15 +7,13 @@
 #define mp make_pair
 #define pb push_back
 #define all(a) begin(a),end(a)
-#define sz(a) a.size()
+#define sz(a) ((int)a.size())
 #define readint(a) ll a; cin >> a
 #define readflt(a) double a; cin >> a
 #define readstr(a) string a; cin >> a
-#define readvi(a, n) vector<int> a(n); forn (i, n) cin >> a[i]
-#define printvi(a, n, d) if (!d || DEBUG) { forn (i, n) cout << a[i] << " "; cout << endl; }
-#define printii(a, d) if (!d || DEBUG) { cout << a.first << " " << b.first << endl; }
+#define readvi(a, n) vector<int> a(n); forn (i, n) cin >> a[i];
 // #define endl '\n'
-#define debug if (DEBUG)
+#define debug if (DEBUG) cout
 #define print cout
 #define DEBUG 0
 using namespace std;
@@ -23,16 +21,27 @@ using namespace __gnu_pbds;
 template<class T> using ordered_set = tree<T, null_type, less<T>, rb_tree_tag, tree_order_statistics_node_update>;
 template<class T> using ordered_multiset = tree<T, null_type, less_equal<T>, rb_tree_tag, tree_order_statistics_node_update>;
 template<class K, class V> using hash_table = gp_hash_table<K, V>;
-using ull = unsigned long long;
+template<class T> using pq = priority_queue<T>;
 using ll = long long;
 using vi = vector<int>;
+using vb = vector<bool>;
+using vll = vector<long long>;
+using vii = vector<pair<int,int>>;
 using ii = pair<int,int>;
+using ull = unsigned long long;
 
 using u64 = uint64_t;
 using u128 = __uint128_t;
 using i128 = __int128_t;
 
-// PROBLEMA: https://www.spoj.com/problems/FACT2/
+// PROBLEMA: https://codeforces.com/contest/2085/problem/E
+// Idea: la suma de los elementos de A menos la suma de los elementos de B
+// nos da un multiplo de K, el numero secreto
+// Implementacion: usar pollard rho para factorizar rapido la diferencia
+// y entonces iterar por los divisores comprobando cual es un candidato
+// valido para K
+// Nota: es suficiente usar un algoritmo lineal hasta raiz de N para encontrar
+// los divisores de la diferencia
 
 ostream& operator<<(ostream &stream, u128 n) {
     ull hi = n / (ull)1e18, lo = n % (ull)1e18;
@@ -235,7 +244,8 @@ u128 brent(u128 n, Montgomery &ms) {
     return g;
 }
 
-void factorizar(u128 n, map<u128, int> &f) {
+
+void factorizar(ll n, hash_table<ll, int> &f) {
     if (n < 2) return;
     if (n < SV_SIZE) {
         while (n > 1) {
@@ -264,15 +274,62 @@ void factorizar(u128 n, map<u128, int> &f) {
 }
 
 int main() {
+    ios::sync_with_stdio(false); cin.tie(0);
     init_sv();
-    u128 a; map<u128, int> f;
-    while (cin >> a && a > 0) {
-        f.clear();
-        factorizar(a,f);
-        
-        for (auto [p,fr] : f) {
-            cout << p << "^" << fr << " ";
+    readint(t); while (t--) {
+        readint(n);
+        readvi(a, n);
+        readvi(b, n);
+        hash_table<int,int> fa, fb;
+        forn (i, n) {
+            fa[a[i]]++; fb[b[i]]++;
         }
-        cout << endl;
+        int Ma = *max_element(all(a)), Mb = *max_element(all(b));
+        if (Mb > Ma) cout << -1 << endl;
+        else if (Ma == Mb) {
+            int ok = true;
+            for (auto [v,c] : fa) {
+                if (fb[v] != c) ok = false;
+            }
+            if (ok) cout << Ma + 1 << endl;
+            else cout << -1 << endl;
+        }
+        else {
+            ll sum1 = 0, sum2 = 0;
+            forn (i, n) {
+                sum1 += a[i];
+                sum2 += b[i];
+            }
+            sum1 -= sum2;
+            hash_table<ll, int> f;
+            factorizar(sum1, f);
+            ordered_set<ll> divisores; divisores.insert(1);
+            for (auto [u,c] : f) {
+                // cout << u << " " << c << endl;
+                forn (i, c) {
+                    vi temp;
+                    for (auto v : divisores) temp.pb(u*v);
+                    for (auto t : temp) divisores.insert(t);
+                }
+            }
+            // cout << sum1 << endl;
+            hash_table<int, int> fc; bool ok; int k;
+            for (auto d : divisores) {
+                ok = true;
+                k = d;
+                // cout << d << endl;
+                forn (i, n) {
+                    if (fc[a[i]%d] == fb[a[i]%d]) {
+                        ok = false;
+                        break;
+                    }
+                    fc[a[i]%d]++;
+                }
+                if (ok) break;
+                fc.clear();
+            }
+            if (ok) cout << k << endl;
+            else cout << -1 << endl;
+        }
     }
 }
